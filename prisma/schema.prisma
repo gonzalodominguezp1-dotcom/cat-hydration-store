@@ -1,0 +1,301 @@
+// Money is stored as integer cents (EUR) to avoid floating-point errors.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Supplier {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  /// Key of the SupplierAdapter implementation, e.g. "mock".
+  adapterKey  String
+  /// True for the simulation adapter. Simulated suppliers never receive real orders.
+  isSimulated Boolean  @default(true)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  variants       Variant[]
+  supplierOrders SupplierOrder[]
+}
+
+model Product {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  name        String
+  subtitle    String?
+  description String
+  brand       String?
+  active      Boolean @default(true)
+
+  // GPSR (Reg. EU 2023/988) information shown on the product page.
+  manufacturerName      String?
+  manufacturerAddress   String?
+  manufacturerContact   String?
+  euResponsiblePerson   String?
+  safetyInformation     String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  variants  Variant[]
+}
+
+model Variant {
+  id                    String    @id @default(cuid())
+  productId             String
+  product               Product   @relation(fields: [productId], references: [id])
+  sku                   String    @unique
+  name                  String
+  priceGrossCents       Int
+  stock                 Int       @default(0)
+  active                Boolean   @default(true)
+  supplierId            String
+  supplier              Supplier  @relation(fields: [supplierId], references: [id])
+  supplierSku           String
+  supplierCostCents     Int
+  supplierShippingCents Int
+  lastSyncedAt          DateTime?
+
+  orderItems   OrderItem[]
+  priceChanges PriceChange[]
+
+  @@unique([supplierId, supplierSku])
+}
+
+model PriceChange {
+  id        String   @id @default(cuid())
+  variantId String
+  variant   Variant  @relation(fields: [variantId], references: [id])
+  field     String
+  oldCents  Int
+  newCents  Int
+  createdAt DateTime @default(now())
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  PAYMENT_FAILED
+  SUPPLIER_QUEUED
+  SUPPLIER_ACCEPTED
+  SUPPLIER_REJECTED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+model Order {
+  id                 String      @id @default(cuid())
+  number             String      @unique
+  status             OrderStatus @default(PENDING_PAYMENT)
+  email              String
+  fullName           String
+  addressLine1       String
+  addressLine2       String?
+  postalCode         String
+  city               String
+  country            String
+  phone              String?
+  currency           String      @default("EUR")
+  subtotalGrossCents Int
+  shippingGrossCents Int
+  totalGrossCents    Int
+  vatCents           Int
+  vatRate            Float
+  /// Public token so a customer can see their order without an account.
+  accessToken        String      @unique
+  checkoutKey        String      @unique
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+  paidAt             DateTime?
+
+  items          OrderItem[]
+  payments       Payment[]
+  supplierOrders SupplierOrder[]
+  shipments      Shipment[]
+  refunds        Refund[]
+  statusHistory  OrderStatusEvent[]
+}
+
+model OrderStatusEvent {
+  id        String      @id @default(cuid())
+  orderId   String
+  order     Order       @relation(fields: [orderId], references: [id])
+  from      OrderStatus?
+  to        OrderStatus
+  reason    String
+  createdAt DateTime    @default(now())
+}
+
+model OrderItem {
+  id                  String  @id @default(cuid())
+  orderId             String
+  order               Order   @relation(fields: [orderId], references: [id])
+  variantId           String
+  variant             Variant @relation(fields: [variantId], references: [id])
+  quantity            Int
+  unitPriceGrossCents Int
+  /// Supplier cost snapshot at order time, for margin reporting.
+  unitCostCents       Int
+  unitShippingCents   Int
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+model Payment {
+  id               String        @id @default(cuid())
+  orderId          String
+  order            Order         @relation(fields: [orderId], references: [id])
+  provider         String
+  /// Provider checkout/session id.
+  providerRef      String        @unique
+  providerPaymentId String?
+  status           PaymentStatus @default(PENDING)
+  amountCents      Int
+  feeCents         Int?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+}
+
+/// Stores every processed webhook event id so retries are idempotent.
+model WebhookEvent {
+  id          String   @id @default(cuid())
+  provider    String
+  eventId     String
+  type        String
+  processedAt DateTime @default(now())
+
+  @@unique([provider, eventId])
+}
+
+enum SupplierOrderStatus {
+  PENDING
+  SUBMITTED
+  ACCEPTED
+  REJECTED
+  SHIPPED
+  CANCELLED
+}
+
+model SupplierOrder {
+  id         String              @id @default(cuid())
+  orderId    String
+  order      Order               @relation(fields: [orderId], references: [id])
+  supplierId String
+  supplier   Supplier            @relation(fields: [supplierId], references: [id])
+  externalId String?
+  status     SupplierOrderStatus @default(PENDING)
+  lastError  String?
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  /// One supplier order per order and supplier: prevents duplicate submissions.
+  @@unique([orderId, supplierId])
+}
+
+model Shipment {
+  id             String   @id @default(cuid())
+  orderId        String
+  order          Order    @relation(fields: [orderId], references: [id])
+  carrier        String
+  trackingNumber String
+  trackingUrl    String?
+  status         String
+  /// Raw evidence from the supplier (tracking events).
+  events         Json
+  updatedAt      DateTime @updatedAt
+  createdAt      DateTime @default(now())
+
+  @@unique([carrier, trackingNumber])
+}
+
+enum RefundStatus {
+  REQUESTED
+  SUCCEEDED
+  FAILED
+}
+
+model Refund {
+  id          String       @id @default(cuid())
+  orderId     String
+  order       Order        @relation(fields: [orderId], references: [id])
+  amountCents Int
+  reason      String
+  status      RefundStatus @default(REQUESTED)
+  providerRef String?      @unique
+  createdAt   DateTime     @default(now())
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+  DEAD
+}
+
+/// Persistent job queue (Postgres, FOR UPDATE SKIP LOCKED).
+model Job {
+  id          String    @id @default(cuid())
+  type        String
+  payload     Json
+  status      JobStatus @default(PENDING)
+  runAt       DateTime  @default(now())
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(5)
+  lastError   String?
+  lockedAt    DateTime?
+  lockedBy    String?
+  /// Optional key that prevents enqueuing the same work twice.
+  dedupeKey   String?   @unique
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status, runAt])
+}
+
+model Incident {
+  id         String    @id @default(cuid())
+  level      String
+  source     String
+  message    String
+  context    Json?
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+}
+
+model AdminUser {
+  id           String         @id @default(cuid())
+  email        String         @unique
+  passwordHash String
+  createdAt    DateTime       @default(now())
+  sessions     AdminSession[]
+}
+
+model AdminSession {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  userId    String
+  user      AdminUser @relation(fields: [userId], references: [id])
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+}
+
+/// Editable financial scenario parameters (admin panel).
+model FinanceScenario {
+  key       String   @id
+  params    Json
+  updatedAt DateTime @updatedAt
+}
