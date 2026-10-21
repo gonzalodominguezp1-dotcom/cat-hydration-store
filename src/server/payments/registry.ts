@@ -13,9 +13,12 @@ export function setPaymentProvider(p: PaymentProvider | null) {
 export function getPaymentProvider(): PaymentProvider {
   if (override) return override;
   const e = env();
-  if (e.STRIPE_SECRET_KEY) return new StripePaymentProvider(e.STRIPE_SECRET_KEY, e.STRIPE_WEBHOOK_SECRET);
-  if (e.NODE_ENV === "production") throw new Error("No payment provider configured");
-  // Development without keys: simulated payments, clearly labelled in the UI.
-  override = new FakePaymentProvider();
-  return override;
+  const mode = e.PAYMENT_PROVIDER ?? (e.STRIPE_SECRET_KEY ? "stripe" : e.NODE_ENV === "production" ? null : "simulated");
+  if (mode === "stripe") return new StripePaymentProvider(e.STRIPE_SECRET_KEY, e.STRIPE_WEBHOOK_SECRET);
+  if (mode === "simulated") {
+    // Simulated payments, clearly labelled in the UI. Never charges anyone.
+    override = new FakePaymentProvider();
+    return override;
+  }
+  throw new Error("No payment provider configured");
 }

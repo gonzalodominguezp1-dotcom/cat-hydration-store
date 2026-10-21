@@ -1,103 +1,81 @@
-import Image from "next/image";
+import Link from "next/link";
+import { getActiveProducts } from "@/server/catalog/queries";
+import { formatEur, FREE_SHIPPING_FROM_CENTS } from "@/server/checkout/pricing";
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+
+const reasons = [
+  {
+    title: "Elegir sin adivinar",
+    text: "Te contamos capacidad, material, ruido y cómo se limpia cada fuente, con datos que comprobamos nosotros, no copiados del fabricante.",
+  },
+  {
+    title: "Recambios siempre a mano",
+    text: "Los filtros se cambian cada 2–4 semanas según el agua y el número de gatos. Los vendemos sueltos y en packs, sin suscripciones obligatorias.",
+  },
+  {
+    title: "Condiciones claras",
+    text: `Precio final con IVA, envío gratis desde ${formatEur(FREE_SHIPPING_FROM_CENTS)}, 14 días para desistir y garantía legal. Sin descuentos inflados ni cuentas atrás.`,
+  },
+];
+
+export default async function Home() {
+  const products = await getActiveProducts();
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="mx-auto max-w-5xl px-4">
+      <section className="py-14 sm:py-20 grid gap-8 sm:grid-cols-2 items-center">
+        <div>
+          <p className="text-sm font-medium text-accent">Hidratación para gatos de interior</p>
+          <h1 className="mt-3 text-3xl sm:text-4xl font-semibold tracking-tight leading-tight">
+            Una fuente fácil de limpiar y recambios que no se agotan.
+          </h1>
+          <p className="mt-4 text-muted leading-relaxed">
+            Muchos gatos prefieren beber agua en movimiento. Seleccionamos pocas fuentes, las probamos y te explicamos
+            cómo mantenerlas para que el agua esté limpia cada día.
+          </p>
+          <div className="mt-6 flex gap-3">
+            <Link href="/productos/fuente-acero-2-5-l" className="rounded-full bg-accent text-white px-5 py-2.5 text-sm font-medium">
+              Ver la fuente
+            </Link>
+            <Link href="/guia/hidratacion-gatos" className="rounded-full border border-border px-5 py-2.5 text-sm">
+              Leer la guía
+            </Link>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+        <div className="aspect-[4/3] rounded-2xl bg-accent-soft grid place-items-center text-sm text-muted text-center p-6">
+          Aquí irá una fotografía real del producto en uso (pendiente de muestras).
+        </div>
+      </section>
+
+      <section className="grid gap-4 sm:grid-cols-3">
+        {reasons.map((r) => (
+          <div key={r.title} className="rounded-xl border border-border bg-white p-5">
+            <h2 className="font-medium">{r.title}</h2>
+            <p className="mt-2 text-sm text-muted leading-relaxed">{r.text}</p>
+          </div>
+        ))}
+      </section>
+
+      <section className="mt-14">
+        <h2 className="text-xl font-semibold">Productos</h2>
+        <div className="mt-4 grid gap-4 sm:grid-cols-3">
+          {products.map((p) => (
+            <Link key={p.id} href={`/productos/${p.slug}`} className="rounded-xl border border-border bg-white p-5 hover:border-accent">
+              <p className="font-medium">{p.name}</p>
+              {p.subtitle && <p className="mt-1 text-sm text-muted">{p.subtitle}</p>}
+              {p.variants[0] && <p className="mt-3 font-semibold">desde {formatEur(p.variants[0].priceGrossCents)}</p>}
+            </Link>
+          ))}
+          {products.length === 0 && <p className="text-muted text-sm">Catálogo vacío. Ejecuta <code>pnpm db:seed</code>.</p>}
+        </div>
+      </section>
+
+      <section className="mt-14 rounded-xl border border-border bg-white p-6">
+        <h2 className="font-medium">Opiniones</h2>
+        <p className="mt-2 text-sm text-muted">
+          Todavía no tenemos opiniones verificadas de clientes. Solo publicaremos reseñas de compras reales.
+        </p>
+      </section>
     </div>
   );
 }
